@@ -2,15 +2,18 @@ const express = require('express');
 const router = express.Router();
 const MongoClient = require('mongodb').MongoClient;
 const uri = "mongodb+srv://test_user:test_pass@cluster0-n9qah.mongodb.net/test?retryWrites=true&w=majority";
-const redis = require("redis");
 const jwt = require('jsonwebtoken');
 const jwt_secret = "jwttokenaccubits";
 const jwt_expiration = 60 * 10;
 const jwt_refresh_expiration = 60 * 60 * 24 * 30;
-var rediscl = redis.createClient();
-rediscl.on("connect", function () {
-    console.log("Redis plugged in.");
-});
+
+const
+  redis     = require('redis'),
+  redisClient    = redis.createClient({
+    port      : 6379,
+    host      : '120.0.0.1',
+    password  : 'soft12'
+  });
 
 MongoClient.connect(uri, { useUnifiedTopology: true })
   .then(client => {
@@ -78,25 +81,18 @@ MongoClient.connect(uri, { useUnifiedTopology: true })
         .then(results => {
           if(results && results.length == 1) {
               let user_name = req.query.name;
-              // let refresh_token = generate_refresh_token(64);
-              // let refresh_token_maxage = new Date() + jwt_refresh_expiration;
+              let refresh_token_maxage = new Date() + jwt_refresh_expiration;
               // Generate new access token
               let token = jwt.sign({ uid: user_name }, jwt_secret, {
                   expiresIn: jwt_expiration
               });
               // And store the user in Redis under key 2212
-              // redis.set(user_id, JSON.stringify({
-              //   refresh_token: refresh_token,
-              //   expires: refresh_token_maxage
-              //   }),
-              //   redis.print
-              // );
-              // rediscl.set(user_name, JSON.stringify({
-              //   expires: refresh_token_maxage
-              //   }),
-              //   rediscl.print
-              // );
-              // let user = results[0];
+              redisClient.set(user_name, JSON.stringify({
+                refresh_token: token,
+                expires: refresh_token_maxage,
+                }),
+                redisClient.print
+              );
               userCollection.findOneAndUpdate({ name: user_name },
               {
                 $push: {
